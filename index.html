@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rainbow Formation (Refraction, Reflection & VIBGYOR Dispersion) — Virtual Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    input[type="range"] {
+      accent-color: #2563eb;
+      cursor: pointer;
+    }
+    .canvas-container {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-30 flex min-h-[60px] flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2">
+    <div class="flex items-center gap-3">
+      <div class="flex h-11 w-12 items-center justify-center rounded-xl bg-sky-50 text-2xl">
+        🌦️
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-slate-900">Rainbow Formation &amp; VIBGYOR Dispersion Lab</h1>
+        <p class="text-sm text-slate-500">
+          Class 10 NCERT Physics — Refraction, Internal Reflection &amp; 7-Colour Dispersion in a Raindrop
+        </p>
+      </div>
+    </div>
+
+    <!-- VIEW MODE & RESET -->
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap rounded-lg border border-slate-200 bg-slate-100 p-1 text-xs font-bold">
+        <button
+          onclick="switchView('raindrop')"
+          id="btnViewDrop"
+          class="view-btn rounded-md bg-blue-600 px-3 py-1.5 text-white shadow-sm transition"
+        >
+          1. Single Raindrop Ray-Tracing
+        </button>
+        <button
+          onclick="switchView('sky')"
+          id="btnViewSky"
+          class="view-btn rounded-md px-3 py-1.5 text-slate-600 hover:text-slate-900 transition"
+        >
+          2. Sky Rainbow &amp; Observer View (40°–42°)
+        </button>
+      </div>
+
+      <button
+        onclick="resetLab()"
+        class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+      >
+        ↺ Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN SIMULATION VIEWPORT -->
+  <section class="border-b border-slate-200 bg-white">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
+      <div>
+        <h2 id="simTitle" class="font-bold text-blue-700">
+          1. Dispersion &amp; Internal Reflection Inside a Spherical Water Raindrop
+        </h2>
+        <p id="simSubtitle" class="text-xs text-slate-500">
+          Drag the sunbeam vertically (or change Impact Parameter) to see Refraction (A) → Dispersion → Internal Reflection (B) → VIBGYOR Exit (C)
+        </p>
+      </div>
+
+      <!-- VIBGYOR COLOUR KEY -->
+      <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-bold">
+        <span class="text-slate-500 mr-1">VIBGYOR:</span>
+        <span class="rounded border border-violet-300 bg-violet-100 px-2 py-0.5 text-violet-900">V (40.6°)</span>
+        <span class="rounded border border-indigo-300 bg-indigo-100 px-2 py-0.5 text-indigo-900">I</span>
+        <span class="rounded border border-blue-300 bg-blue-100 px-2 py-0.5 text-blue-900">B</span>
+        <span class="rounded border border-green-300 bg-green-100 px-2 py-0.5 text-green-900">G</span>
+        <span class="rounded border border-yellow-300 bg-yellow-100 px-2 py-0.5 text-yellow-900">Y</span>
+        <span class="rounded border border-orange-300 bg-orange-100 px-2 py-0.5 text-orange-900">O</span>
+        <span class="rounded border border-red-300 bg-red-100 px-2 py-0.5 text-red-900">R (42.3°)</span>
+      </div>
+    </div>
+
+    <div class="canvas-container relative overflow-x-auto px-2 py-2">
+      <canvas
+        id="rainbowCanvas"
+        width="1120"
+        height="420"
+        class="mx-auto block w-full max-w-[1120px] cursor-grab rounded-xl border border-slate-800 bg-slate-950 shadow-inner"
+      ></canvas>
+    </div>
+
+    <!-- DISPLAY OPTIONS BAR -->
+    <div class="mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div class="flex flex-wrap items-center gap-4 text-xs font-semibold">
+        <label class="flex cursor-pointer items-center gap-2">
+          <input id="chkNormals" type="checkbox" checked class="h-4 w-4 rounded" />
+          <span>Show Radius Normals (Points A, B, C)</span>
+        </label>
+        <label class="flex cursor-pointer items-center gap-2">
+          <input id="chkLabels" type="checkbox" checked class="h-4 w-4 rounded" />
+          <span>Show Step Labels (Refraction &amp; Reflection)</span>
+        </label>
+        <label class="flex cursor-pointer items-center gap-2">
+          <input id="chkObserver" type="checkbox" checked class="h-4 w-4 rounded" />
+          <span>Show Observer Eye &amp; Angle Arc</span>
+        </label>
+      </div>
+
+      <div id="statusBadge" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-900">
+        ✓ Peak Rainbow Angle (Descartes Ray): Red emerges at 42.3° (Top), Violet at 40.6° (Bottom)
+      </div>
+    </div>
+  </section>
+
+  <!-- LOWER DASHBOARD -->
+  <main class="grid grid-cols-1 gap-4 p-4 lg:grid-cols-3">
+    <!-- CONTROLS -->
+    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 class="mb-4 border-b border-slate-100 pb-3 text-lg font-bold">
+        🎚 Sunlight &amp; Raindrop Controls
+      </h2>
+
+      <!-- Impact Parameter Slider -->
+      <div class="mb-4">
+        <div class="mb-1.5 flex items-center justify-between">
+          <label class="text-sm font-semibold">Sunbeam Entry Height (Impact Parameter b/R)</label>
+          <span id="valImpact" class="rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700">
+            0.86 R (Rainbow Peak)
+          </span>
+        </div>
+        <input id="sliderImpact" type="range" min="0.10" max="0.98" step="0.01" value="0.86" class="w-full" />
+        <div class="mt-1 flex justify-between text-xs text-slate-400">
+          <span>0.10 R (Center)</span>
+          <span>0.86 R (Max Rainbow)</span>
+          <span>0.98 R (Edge)</span>
+        </div>
+      </div>
+
+      <!-- Rainbow Order Preset -->
+      <div class="mb-4">
+        <label class="mb-1.5 block text-sm font-semibold">Rainbow Type</label>
+        <select id="selectRainbowType" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800">
+          <option value="primary" selected>🌈 Primary Rainbow (1 Internal Reflection — Red on Top)</option>
+          <option value="secondary">🌈🌈 Secondary Rainbow (2 Internal Reflections — Violet on Top)</option>
+        </select>
+      </div>
+
+      <!-- Sun Elevation Angle (for Sky View) -->
+      <div class="mb-3">
+        <div class="mb-1.5 flex items-center justify-between">
+          <label class="text-sm font-semibold">Sun Altitude Angle (Sky View)</label>
+          <span id="valSunAlt" class="rounded-md bg-amber-50 px-2 py-1 text-xs font-bold text-amber-700">
+            15° above horizon
+          </span>
+        </div>
+        <input id="sliderSunAlt" type="range" min="0" max="45" step="1" value="15" class="w-full" />
+        <div class="mt-1 flex justify-between text-xs text-slate-400">
+          <span>0° (Sunrise/Sunset)</span>
+          <span>42° (Rainbow Limit)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIVE OPTICAL READINGS -->
+    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 class="mb-4 border-b border-slate-100 pb-3 text-lg font-bold">
+        ✨ Dispersion &amp; Reflection Angles
+      </h2>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p class="text-[10px] font-bold tracking-wide text-slate-500">INCIDENCE ANGLE (i)</p>
+          <p id="cardIncAngle" class="mt-2 text-2xl font-bold text-blue-600">59.3°</p>
+          <p class="text-xs font-semibold text-slate-600">sin(i) = b / R</p>
+          <p class="mt-1 text-[10px] text-slate-500">At point A (Air → Water)</p>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p class="text-[10px] font-bold tracking-wide text-slate-500">RED EXIT ANGLE (θ_R)</p>
+          <p id="cardRedAngle" class="mt-2 text-2xl font-bold text-red-600">42.3°</p>
+          <p class="text-xs font-semibold text-slate-600">n_Red = 1.331</p>
+          <p class="mt-1 text-[10px] text-slate-500">Outer arc of rainbow</p>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p class="text-[10px] font-bold tracking-wide text-slate-500">VIOLET EXIT ANGLE (θ_V)</p>
+          <p id="cardVioletAngle" class="mt-2 text-2xl font-bold text-violet-700">40.6°</p>
+          <p class="text-xs font-semibold text-slate-600">n_Violet = 1.344</p>
+          <p class="mt-1 text-[10px] text-slate-500">Inner arc of rainbow</p>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p class="text-[10px] font-bold tracking-wide text-slate-500">ANGULAR SPREAD (Δθ)</p>
+          <p id="cardSpread" class="mt-2 text-2xl font-bold text-emerald-600">1.70°</p>
+          <p class="text-xs font-semibold text-slate-600">7-Colour Band Width</p>
+          <p class="mt-1 text-[10px] text-slate-500">VIBGYOR separation</p>
+        </div>
+      </div>
+
+      <div class="mt-4 rounded-lg bg-sky-50 p-3 text-xs leading-5 text-sky-950">
+        <strong>Why Red is on Top &amp; Violet on Bottom:</strong> High raindrops send <strong>Red light (42.3°)</strong> to the observer's eye, while slightly lower raindrops send <strong>Violet light (40.6°)</strong>.
+      </div>
+    </section>
+
+    <!-- STEP-BY-STEP PHYSICS EXPLANATION -->
+    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+        <h2 class="text-lg font-bold">📖 3-Step Rainbow Physics</h2>
+        <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+          NCERT Class 10
+        </span>
+      </div>
+
+      <div class="space-y-2.5 text-xs leading-5">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+          <p class="font-bold text-blue-700">Step 1: Refraction &amp; Dispersion (Point A)</p>
+          <p class="text-slate-600">White sunlight enters the water droplet (n ≈ 1.33), slows down, bends toward the normal, and splits into 7 colours (VIBGYOR).</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+          <p class="font-bold text-amber-700">Step 2: Internal Reflection (Point B)</p>
+          <p class="text-slate-600">The dispersed rays hit the back inner surface of the raindrop and reflect internally back toward the front of the drop.</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+          <p class="font-bold text-emerald-700">Step 3: Refraction Outward (Point C)</p>
+          <p class="text-slate-600">Rays refract again as they exit into air, widening the 7-colour fan at <strong>40.6° (Violet) to 42.3° (Red)</strong> toward the observer.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200 bg-white px-4 py-4 text-center text-xs text-slate-500">
+    Rainbow Formation &amp; Dispersion Virtual Lab | Refraction + Internal Reflection + VIBGYOR Spectrum
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- JAVASCRIPT RAY-TRACING ENGINE                                         -->
+  <!-- ===================================================================== -->
+  <script>
+    const canvas = document.getElementById("rainbowCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const VIBGYOR = [
+      { name: "Violet", short: "V", n: 1.344, color: "#a855f7" },
+      { name: "Indigo", short: "I", n: 1.341, color: "#6366f1" },
+      { name: "Blue",   short: "B", n: 1.339, color: "#3b82f6" },
+      { name: "Green",  short: "G", n: 1.336, color: "#22c55e" },
+      { name: "Yellow", short: "Y", n: 1.334, color: "#eab308" },
+      { name: "Orange", short: "O", n: 1.332, color: "#f97316" },
+      { name: "Red",    short: "R", n: 1.331, color: "#ef4444" },
+    ];
+
+    const state = {
+      viewMode: "raindrop",     // 'raindrop' | 'sky'
+      impactFrac: 0.86,         // b / R in [0.10 .. 0.98]
+      rainbowType: "primary",   // 'primary' (1 reflection) | 'secondary' (2 reflections)
+      sunAltDeg: 15,            // 0..45 deg
+      showNormals: true,
+      showLabels: true,
+      showObserver: true,
+      draggingRay: false,
+    };
+
+    // Controls
+    const sliderImpact = document.getElementById("sliderImpact");
+    const selectRainbowType = document.getElementById("selectRainbowType");
+    const sliderSunAlt = document.getElementById("sliderSunAlt");
+
+    sliderImpact.addEventListener("input", (e) => {
+      state.impactFrac = parseFloat(e.target.value);
+      renderAll();
+    });
+
+    selectRainbowType.addEventListener("change", (e) => {
+      state.rainbowType = e.target.value;
+      // Set optimal impact parameter for Primary (0.86) vs Secondary (0.95)
+      state.impactFrac = state.rainbowType === "primary" ? 0.86 : 0.95;
+      sliderImpact.value = state.impactFrac;
+      renderAll();
+    });
+
+    sliderSunAlt.addEventListener("input", (e) => {
+      state.sunAltDeg = parseInt(e.target.value, 10);
+      renderAll();
+    });
+
+    document.getElementById("chkNormals").addEventListener("change", (e) => {
+      state.showNormals = e.target.checked;
+      renderAll();
+    });
+
+    document.getElementById("chkLabels").addEventListener("change", (e) => {
+      state.showLabels = e.target.checked;
+      renderAll();
+    });
+
+    document.getElementById("chkObserver").addEventListener("change", (e) => {
+      state.showObserver = e.target.checked;
+      renderAll();
+    });
+
+    function switchView(mode) {
+      state.viewMode = mode;
+      document.querySelectorAll(".view-btn").forEach((b) => {
+        b.className = "view-btn rounded-md px-3 py-1.5 text-slate-600 hover:text-slate-900 transition";
+      });
+      if (mode === "raindrop") {
+        document.getElementById("btnViewDrop").className =
+          "view-btn rounded-md bg-blue-600 px-3 py-1.5 text-white shadow-sm transition";
+        document.getElementById("simTitle").textContent =
+          "1. Dispersion & Internal Reflection Inside a Spherical Water Raindrop";
+        document.getElementById("simSubtitle").textContent =
+          "Drag the sunbeam vertically to see Refraction (A) → Dispersion → Internal Reflection (B) → VIBGYOR Exit (C)";
+      } else {
+        document.getElementById("btnViewSky").className =
+          "view-btn rounded-md bg-blue-600 px-3 py-1.5 text-white shadow-sm transition";
+        document.getElementById("simTitle").textContent =
+          "2. Sky Rainbow Formation — How Millions of Raindrops Form a 42° Arc";
+        document.getElementById("simSubtitle").textContent =
+          "Adjust Sun Altitude Angle: Rainbows always appear opposite the Sun at 40.6° (Violet) to 42.3° (Red) from the antisolar axis";
+      }
+      renderAll();
+    }
+
+    // Drag Sunbeam Vertically in Raindrop Mode
+    function getCanvasCoords(evt) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY,
+      };
+    }
+
+    canvas.addEventListener("pointerdown", (e) => {
+      if (state.viewMode !== "raindrop") return;
+      const pos = getCanvasCoords(e);
+      if (pos.x < 560) {
+        state.draggingRay = true;
+        canvas.style.cursor = "grabbing";
+        updateImpactFromY(pos.y);
+      }
+    });
+
+    window.addEventListener("pointermove", (e) => {
+      if (!state.draggingRay) return;
+      const pos = getCanvasCoords(e);
+      updateImpactFromY(pos.y);
+    });
+
+    window.addEventListener("pointerup", () => {
+      if (state.draggingRay) {
+        state.draggingRay = false;
+        canvas.style.cursor = "grab";
+      }
+    });
+
+    function updateImpactFromY(mouseY) {
+      const dropCY = 210;
+      const dropR = 148;
+      // Primary rainbow strikes upper half (cy - b), Secondary strikes lower half (cy + b)
+      const dy = state.rainbowType === "primary" ? dropCY - mouseY : mouseY - dropCY;
+      const newB = Math.max(0.10, Math.min(0.98, dy / dropR));
+      state.impactFrac = Math.round(newB * 100) / 100;
+      sliderImpact.value = state.impactFrac;
+      renderAll();
+    }
+
+    function drawGlowLine(p1, p2, color, width = 3) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 9;
+      ctx.lineWidth = width;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawArrowHead(x, y, angle, color, size = 7) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(size, 0);
+      ctx.lineTo(-size * 0.7, -size * 0.55);
+      ctx.lineTo(-size * 0.7, size * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // MODE 1: SINGLE RAINDROP EXACT SNELL'S LAW + INTERNAL REFLECTION
+    // =========================================================================
+    function renderRaindropView() {
+      const cx = 560;
+      const cy = 210;
+      const R = 148;
+      const isPrimary = state.rainbowType === "primary";
+      const b = state.impactFrac;
+      const incRad = Math.asin(b);
+      const incDeg = (incRad * 180) / Math.PI;
+
+      // Subtle optical grid
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.08)";
+      ctx.lineWidth = 1;
+      for (let gx = 0; gx < canvas.width; gx += 40) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, canvas.height);
+        ctx.stroke();
+      }
+
+      // 1. Spherical Water Raindrop with 3D Glassy Gradient
+      const dropGrad = ctx.createRadialGradient(cx - 45, cy - 45, 15, cx, cy, R);
+      dropGrad.addColorStop(0, "rgba(224, 242, 254, 0.32)");
+      dropGrad.addColorStop(0.65, "rgba(56, 189, 248, 0.16)");
+      dropGrad.addColorStop(1, "rgba(14, 165, 233, 0.36)");
+
+      ctx.fillStyle = dropGrad;
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Center dot of raindrop
+      ctx.fillStyle = "#94a3b8";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Incident White Sunlight Beam from Left
+      // For Primary rainbow: strikes upper-left quadrant (y = cy - b*R)
+      // For Secondary rainbow: strikes lower-left quadrant (y = cy + b*R)
+      const signY = isPrimary ? -1 : 1;
+      const hitA = {
+        x: cx - Math.cos(incRad) * R,
+        y: cy + signY * Math.sin(incRad) * R,
+      };
+      const sunStart = { x: 95, y: hitA.y };
+
+      // Sun Icon on Left
+      ctx.fillStyle = "#fde047";
+      ctx.beginPath();
+      ctx.arc(65, hitA.y, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fef9c3";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Sunlight", 65, hitA.y + 36);
+      ctx.fillText("↕ Drag Ray", 160, hitA.y - 12);
+
+      // White Light Beam
+      drawGlowLine(sunStart, hitA, "#ffffff", 5);
+      drawArrowHead(260, hitA.y, 0, "#ffffff", 8);
+
+      // Radius Normal at Point A
+      if (state.showNormals) {
+        const angA = Math.atan2(hitA.y - cy, hitA.x - cx);
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(angA) * (R + 40), cy + Math.sin(angA) * (R + 40));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (state.showLabels) {
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("A: Refraction & Dispersion", hitA.x - 14, hitA.y + (isPrimary ? -14 : 20));
+      }
+
+      // 3. Trace All 7 VIBGYOR Wavelengths Through the Raindrop
+      let redExitDeg = 0;
+      let violetExitDeg = 0;
+      let sampleHitB = null;
+      let sampleHitC = null;
+
+      VIBGYOR.forEach((spec) => {
+        const rRad = Math.asin(Math.sin(incRad) / spec.n);
+        // Polar angle of Point A from drop center:
+        // Upper-left: pi - incRad | Lower-left: pi + incRad
+        const phiA = isPrimary ? Math.PI - incRad : Math.PI + incRad;
+
+        if (isPrimary) {
+          // Ray travels across chord to Point B at back of drop:
+          // Chord rotates angle by -(pi - 2*rRad)
+          const phiB = phiA - (Math.PI - 2 * rRad);
+          const hitB = { x: cx + R * Math.cos(phiB), y: cy + R * Math.sin(phiB) };
+
+          // Internal Reflection at Point B -> Point C on lower-left front face:
+          const phiC = phiB - (Math.PI - 2 * rRad);
+          const hitC = { x: cx + R * Math.cos(phiC), y: cy + R * Math.sin(phiC) };
+
+          // Draw internal ray A -> B and B -> C
+          drawGlowLine(hitA, hitB, spec.color, 2.3);
+          drawGlowLine(hitB, hitC, spec.color, 2.5);
+
+          // Exit Ray Direction from Point C (total clockwise rotation = 4r - 2i)
+          // Relative to incoming rightward ray (angle 0), exit ray points down-left:
+          // Angle in screen coords (y down) = pi - (4*rRad - 2*incRad)
+          const rainbowAngleRad = 4 * rRad - 2 * incRad;
+          const exitScreenAng = Math.PI - rainbowAngleRad;
+          const exitEnd = {
+            x: hitC.x + Math.cos(exitScreenAng) * 320,
+            y: hitC.y + Math.sin(exitScreenAng) * 320,
+          };
+
+          drawGlowLine(hitC, exitEnd, spec.color, 3.2);
+
+          if (spec.short === "R") {
+            redExitDeg = (rainbowAngleRad * 180) / Math.PI;
+            sampleHitB = hitB;
+            sampleHitC = hitC;
+          }
+          if (spec.short === "V") {
+            violetExitDeg = (rainbowAngleRad * 180) / Math.PI;
+          }
+        } else {
+          // Secondary Rainbow (2 Internal Reflections: A -> B -> C -> D)
+          const phiB = phiA + (Math.PI - 2 * rRad);
+          const hitB = { x: cx + R * Math.cos(phiB), y: cy + R * Math.sin(phiB) };
+
+          const phiC = phiB + (Math.PI - 2 * rRad);
+          const hitC = { x: cx + R * Math.cos(phiC), y: cy + R * Math.sin(phiC) };
+
+          const phiD = phiC + (Math.PI - 2 * rRad);
+          const hitD = { x: cx + R * Math.cos(phiD), y: cy + R * Math.sin(phiD) };
+
+          drawGlowLine(hitA, hitB, spec.color, 2.0);
+          drawGlowLine(hitB, hitC, spec.color, 2.0);
+          drawGlowLine(hitC, hitD, spec.color, 2.2);
+
+          // Secondary rainbow viewing angle = 2*i - 6*r + pi
+          const secAngleRad = 2 * incRad - 6 * rRad + Math.PI;
+          const exitScreenAng = Math.PI + secAngleRad;
+          const exitEnd = {
+            x: hitD.x + Math.cos(exitScreenAng) * 300,
+            y: hitD.y + Math.sin(exitScreenAng) * 300,
+          };
+
+          drawGlowLine(hitD, exitEnd, spec.color, 3.0);
+
+          if (spec.short === "R") {
+            redExitDeg = (secAngleRad * 180) / Math.PI;
+            sampleHitB = hitB;
+            sampleHitC = hitD;
+          }
+          if (spec.short === "V") {
+            violetExitDeg = (secAngleRad * 180) / Math.PI;
+          }
+        }
+      });
+
+      // Labels for B (Internal Reflection) & C (Exit Refraction)
+      if (state.showLabels && sampleHitB && sampleHitC) {
+        ctx.fillStyle = "#fde047";
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("B: Internal Reflection", sampleHitB.x + 12, sampleHitB.y + 4);
+
+        ctx.fillStyle = "#6ee7b7";
+        ctx.textAlign = "right";
+        ctx.fillText("C: Exit Refraction", sampleHitC.x - 14, sampleHitC.y + 18);
+      }
+
+      // Observer Eye & Viewing Angle Arc on Bottom Left
+      if (state.showObserver && isPrimary && sampleHitC) {
+        const obsX = 185;
+        const obsY = 365;
+        drawObserverEye(obsX, obsY);
+
+        // Horizontal reference dashed line from observer
+        ctx.save();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(obsX, obsY);
+        ctx.lineTo(obsX + 180, obsY);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = "#fca5a5";
+        ctx.font = "bold 11px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(`Viewing Angle: ${violetExitDeg.toFixed(1)}° (V) to ${redExitDeg.toFixed(1)}° (R)`, obsX + 35, obsY - 12);
+      }
+
+      updateMetricsUI(incDeg, redExitDeg, violetExitDeg);
+    }
+
+    function drawObserverEye(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 16, 10, -0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#0284c7";
+      ctx.beginPath();
+      ctx.arc(3, -1, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Observer", 0, 24);
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // MODE 2: SKY RAINBOW & OBSERVER VIEW (40.6° TO 42.3° ARC)
+    // =========================================================================
+    function renderSkyRainbowView() {
+      // Sky Gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, 350);
+      skyGrad.addColorStop(0, "#0f172a");
+      skyGrad.addColorStop(0.6, "#1e3a8a");
+      skyGrad.addColorStop(1, "#38bdf8");
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, canvas.width, 350);
+
+      // Green Ground
+      ctx.fillStyle = "#15803d";
+      ctx.fillRect(0, 350, canvas.width, 70);
+
+      // Observer Standing on Left (x = 160, ground y = 350)
+      const obsX = 160;
+      const eyeY = 315;
+      ctx.fillStyle = "#f8fafc";
+      ctx.beginPath();
+      ctx.arc(obsX, eyeY, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(obsX - 5, eyeY + 8, 10, 27);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Observer (Back to Sun)", obsX, 372);
+
+      // Incoming Parallel Sunlight Rays from Behind Observer (at Sun Altitude angle)
+      const altRad = (state.sunAltDeg * Math.PI) / 180;
+      const rayDx = Math.cos(altRad);
+      const rayDy = Math.sin(altRad);
+
+      // Antisolar Dashed Line from Observer's Eye
+      const antiEndX = obsX + rayDx * 850;
+      const antiEndY = eyeY + rayDy * 850;
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+      ctx.setLineDash([6, 5]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(obsX, eyeY);
+      ctx.lineTo(antiEndX, antiEndY);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "11px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(`Antisolar Direction (Sun Altitude = ${state.sunAltDeg}°)`, obsX + 180, eyeY + Math.tan(altRad) * 180 + 16);
+
+      // Draw Falling Raindrops Cloud on Right (x = 760)
+      const dropColX = 760;
+      const visibleHeight = 42.3 - state.sunAltDeg;
+
+      if (visibleHeight <= 0) {
+        ctx.fillStyle = "#fef08a";
+        ctx.font = "bold 15px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Sun is above 42.3° — Rainbow falls below the horizon!", 560, 170);
+        return;
+      }
+
+      // Upper Raindrop sends Red (42.3°) & Lower Raindrop sends Violet (40.6°)
+      const redElevRad = ((42.3 - state.sunAltDeg) * Math.PI) / 180;
+      const violetElevRad = ((40.6 - state.sunAltDeg) * Math.PI) / 180;
+
+      const distX = dropColX - obsX;
+      const redDropY = eyeY - Math.tan(redElevRad) * distX;
+      const violetDropY = eyeY - Math.tan(violetElevRad) * distX;
+
+      // Draw 7 Dispersed Rays from Raindrop Column to Observer's Eye
+      VIBGYOR.forEach((spec, idx) => {
+        const frac = idx / 6; // 0 = Violet (bottom), 1 = Red (top)
+        const dropY = violetDropY + frac * (redDropY - violetDropY);
+
+        // Sunlight hitting drop from behind observer
+        drawGlowLine(
+          { x: dropColX - rayDx * 380, y: dropY - rayDy * 380 },
+          { x: dropColX, y: dropY },
+          "rgba(255, 255, 255, 0.45)",
+          2
+        );
+
+        // Dispersed colored ray reaching Observer's Eye
+        drawGlowLine({ x: dropColX, y: dropY }, { x: obsX, y: eyeY }, spec.color, 3);
+
+        // Raindrop circle
+        ctx.fillStyle = "#bae6fd";
+        ctx.beginPath();
+        ctx.arc(dropColX, dropY, 7, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Labels for Top (Red) and Bottom (Violet) Drops
+      ctx.fillStyle = "#fca5a5";
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("Higher Drop → Red (42.3°)", dropColX + 16, redDropY);
+
+      ctx.fillStyle = "#d8b4fe";
+      ctx.fillText("Lower Drop → Violet (40.6°)", dropColX + 16, violetDropY + 10);
+
+      // Draw Rainbow Band Arc on Far Right (x = 980)
+      VIBGYOR.forEach((spec, idx) => {
+        ctx.strokeStyle = spec.color;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(980, 350, 155 + idx * 6, Math.PI * 1.05, Math.PI * 1.65);
+        ctx.stroke();
+      });
+    }
+
+    function updateMetricsUI(incDeg, redDeg, violetDeg) {
+      document.getElementById("valImpact").textContent = `${state.impactFrac.toFixed(2)} R`;
+      document.getElementById("valSunAlt").textContent = `${state.sunAltDeg}° above horizon`;
+
+      document.getElementById("cardIncAngle").textContent = `${incDeg.toFixed(1)}°`;
+      document.getElementById("cardRedAngle").textContent = `${redDeg.toFixed(1)}°`;
+      document.getElementById("cardVioletAngle").textContent = `${violetDeg.toFixed(1)}°`;
+      document.getElementById("cardSpread").textContent = `${Math.abs(redDeg - violetDeg).toFixed(2)}°`;
+
+      const badge = document.getElementById("statusBadge");
+      if (state.rainbowType === "primary") {
+        badge.textContent = `✓ Primary Rainbow (1 Internal Reflection): Red at ${redDeg.toFixed(1)}° (Top), Violet at ${violetDeg.toFixed(1)}° (Bottom)`;
+      } else {
+        badge.textContent = `✓ Secondary Rainbow (2 Internal Reflections): Colours Inverted — Violet at ${violetDeg.toFixed(1)}° (Top), Red at ${redDeg.toFixed(1)}° (Bottom)`;
+      }
+    }
+
+    function renderAll() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (state.viewMode === "raindrop") renderRaindropView();
+      else renderSkyRainbowView();
+    }
+
+    function resetLab() {
+      state.viewMode = "raindrop";
+      state.impactFrac = 0.86;
+      state.rainbowType = "primary";
+      state.sunAltDeg = 15;
+      state.showNormals = true;
+      state.showLabels = true;
+      state.showObserver = true;
+
+      sliderImpact.value = 0.86;
+      selectRainbowType.value = "primary";
+      sliderSunAlt.value = 15;
+      document.getElementById("chkNormals").checked = true;
+      document.getElementById("chkLabels").checked = true;
+      document.getElementById("chkObserver").checked = true;
+
+      switchView("raindrop");
+    }
+
+    renderAll();
+  </script>
+</body>
+</html>
